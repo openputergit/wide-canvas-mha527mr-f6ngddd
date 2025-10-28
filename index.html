@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ADHD Buddy - Your Personal Task Assistant</title>
+    <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f0f9ff;
+        }
+        .ai-assistant {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            z-index: 1000;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+        .ai-assistant:hover {
+            transform: scale(1.1);
+        }
+        .notification {
+            animation: slideIn 0.5s ease-out;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(100%); }
+            to { transform: translateX(0); }
+        }
+        .task-card {
+            transition: all 0.3s ease;
+        }
+        .task-card:hover {
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <!-- Login Section -->
+    <div id="loginSection" class="fixed inset-0 bg-white z-50 flex items-center justify-center">
+        <div class="bg-white p-8 rounded-lg shadow-xl max-w-md w-full">
+            <h2 class="text-2xl font-bold mb-6 text-center text-blue-600">Welcome to ADHD Buddy</h2>
+            <input type="text" id="username" placeholder="Username" class="w-full mb-4 p-3 border rounded">
+            <input type="email" id="email" placeholder="Email" class="w-full mb-4 p-3 border rounded">
+            <input type="password" id="password" placeholder="Password" class="w-full mb-4 p-3 border rounded">
+            <div class="flex justify-between mb-4">
+                <button onclick="forgotPassword()" class="text-blue-600 hover:text-blue-800">Forgot Password?</button>
+                <button onclick="register()" class="text-blue-600 hover:text-blue-800">Register</button>
+            </div>
+            <button onclick="login()" class="w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700">Login</button>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="mainApp" class="hidden">
+        <nav class="bg-white shadow-lg">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between h-16">
+                    <div class="flex items-center">
+                        <h1 class="text-xl font-bold text-blue-600">ADHD Buddy</h1>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <button onclick="showDopamineMenu()" class="text-blue-600 hover:text-blue-800">
+                            <i class="bi bi-emoji-smile"></i> Dopamine Menu
+                        </button>
+                        <button onclick="showProfile()" class="text-gray-600 hover:text-gray-800">
+                            <i class="bi bi-person-circle"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <!-- Quick Add Section -->
+            <div class="flex space-x-4 mb-8">
+                <button onclick="quickAdd('text')" class="flex-1 bg-blue-600 text-white p-4 rounded-lg hover:bg-blue-700">
+                    <i class="bi bi-plus-lg"></i> Quick Add
+                </button>
+                <button onclick="quickAdd('voice')" class="flex-1 bg-green-600 text-white p-4 rounded-lg hover:bg-green-700">
+                    <i class="bi bi-mic"></i> Voice Input
+                </button>
+                <button onclick="quickAdd('photo')" class="flex-1 bg-purple-600 text-white p-4 rounded-lg hover:bg-purple-700">
+                    <i class="bi bi-camera"></i> Photo to Task
+                </button>
+            </div>
+
+            <!-- Tasks Section -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div id="taskList" class="space-y-4"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- AI Assistant -->
+    <div class="ai-assistant" onclick="toggleAssistant()">
+        <lottie-player src="https://assets2.lottiefiles.com/packages/lf20_GofK09.json" background="transparent" speed="1" style="width: 80px; height: 80px;" hover loop></lottie-player>
+    </div>
+
+    <script>
+        let currentUser = null;
+        let tasks = [];
+
+        function login() {
+            const username = document.getElementById('username').value;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            if (username && email && password) {
+                currentUser = { username, email };
+                document.getElementById('loginSection').classList.add('hidden');
+                document.getElementById('mainApp').classList.remove('hidden');
+                showAssistantMessage("Welcome! I'm your ADHD Buddy. Need help staying on track? Just click me!");
+            }
+        }
+
+        function forgotPassword() {
+            alert("Forgot Password functionality not implemented yet.");
+        }
+
+        function register() {
+            alert("Registration functionality not implemented yet.");
+        }
+
+        function quickAdd(type) {
+            switch(type) {
+                case 'text':
+                    const taskText = prompt("What's your task?");
+                    if (taskText) addTask(taskText);
+                    break;
+                case 'voice':
+                    if ('webkitSpeechRecognition' in window) {
+                        alert("Voice recognition started...");
+                    }
+                    break;
+                case 'photo':
+                    alert("Photo capture feature coming soon!");
+                    break;
+            }
+        }
+
+        function addTask(text) {
+            const task = {
+                id: Date.now(),
+                text,
+                created: new Date(),
+                reminder: {
+                    interval: 15,
+                    location: null,
+                    escalation: 'gentle'
+                }
+            };
+            tasks.push(task);
+            renderTasks();
+            scheduleReminder(task);
+        }
+
+        function renderTasks() {
+            const taskList = document.getElementById('taskList');
+            taskList.innerHTML = tasks.map(task => `
+                <div class="task-card bg-white p-4 rounded-lg shadow hover:shadow-lg">
+                    <p class="text-lg font-medium">${task.text}</p>
+                    <div class="mt-2 flex justify-between items-center">
+                        <button onclick="toggleReminder(${task.id})" class="text-blue-600 hover:text-blue-800">
+                            <i class="bi bi-bell"></i> Remind
+                        </button>
+                        <button onclick="completeTask(${task.id})" class="text-green-600 hover:text-green-800">
+                            <i class="bi bi-check-lg"></i> Complete
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function scheduleReminder(task) {
+            if (task.reminder.interval) {
+                setInterval(() => {
+                    showNotification(`Reminder: ${task.text}`);
+                }, task.reminder.interval * 60000);
+            }
+        }
+
+        function showNotification(message) {
+            const notification = document.createElement('div');
+            notification.className = 'notification fixed top-4 right-4 bg-blue-600 text-white p-4 rounded-lg shadow-lg';
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            setTimeout(() => notification.remove(), 5000);
+        }
+
+        function toggleAssistant() {
+            showAssistantMessage("Need help? I can guide you through task management, set smart reminders, or help you access your dopamine menu!");
+        }
+
+        function showAssistantMessage(message) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'fixed bottom-24 left-24 bg-white p-4 rounded-lg shadow-lg max-w-xs notification';
+            messageDiv.textContent = message;
+            document.body.appendChild(messageDiv);
+            setTimeout(() => messageDiv.remove(), 5000);
+        }
+
+        function showDopamineMenu() {
+            const activities = [
+                "Take a 2-minute dance break",
+                "Draw a quick doodle",
+                "Do 5 jumping jacks",
+                "Listen to your favorite song",
+                "Take 3 deep breaths"
+            ];
+            alert("Quick Dopamine Boosts:\n\n" + activities.join("\n"));
+        }
+
+        // Initialize with some sample tasks
+        addTask("Complete daily meditation");
+        addTask("Take medication");
+    </script>
+<script>document.body.addEventListener('wheel', e => { if (!e.ctrlKey) return; e.preventDefault(); return }, { passive: false })</script>
+	</body>
+</html>
